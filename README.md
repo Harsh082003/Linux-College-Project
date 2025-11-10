@@ -1,3 +1,4 @@
+
 # System Maintenance Toolkit (Advanced)
 
 A Bash-based command-line toolkit for basic Linux system administration tasks.
@@ -12,21 +13,22 @@ A Bash-based command-line toolkit for basic Linux system administration tasks.
 
 ## Usage
 1. Make the script executable:
-bash
+```bash
 chmod +x toolkit.sh
-
+```
 2. Run:
-bash
+```bash
 ./toolkit.sh
-
+```
 
 ## Files
-- toolkit.sh - main script (Advanced)
-- README.md - this file
-- .gitignore - recommended ignores
-- LICENSE - MIT
+- `toolkit.sh` - main script (Advanced)
+- `README.md` - this file
+- `.gitignore` - recommended ignores
+- `LICENSE` - MIT
 
 ## Notes for submission
 - Include screenshots of the running script.
 - Prepare a short report / viva answers to explain each module.
-- Do *not* run cleanup commands on production systems without understanding them.
+- Do **not** run cleanup commands on production systems without understanding them.
+
