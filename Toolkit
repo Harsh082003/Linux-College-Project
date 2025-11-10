@@ -1,0 +1,199 @@
+# System Maintenance Toolkit - Advanced Version
+
+# Colors
+RED="\033[1;31m"
+GREEN="\033[1;32m"
+YELLOW="\033[1;33m"
+BLUE="\033[1;34m"
+CYAN="\033[1;36m"
+BOLD="\033[1m"
+RESET="\033[0m"
+
+# Helper: print header
+header() {
+  clear
+  echo -e "${CYAN}${BOLD}==========================================${RESET}"
+  echo -e "${CYAN}${BOLD}         SYSTEM MAINTENANCE TOOLKIT       ${RESET}"
+  echo -e "${CYAN}${BOLD}==========================================${RESET}"
+}
+
+# Helper: small progress bar
+progress() {
+  local duration=${1:-3}
+  echo -n "Progress: ["
+  for i in $(seq 1 "$duration"); do
+    echo -n "#"
+    sleep 0.3
+  done
+  echo "] Done"
+}
+
+pause() {
+  read -rp "Press Enter to continue..."
+}
+
+# Option 1: System Information
+sys_info() {
+  echo -e "${GREEN}---- SYSTEM INFORMATION ----${RESET}"
+  echo "Hostname: $(hostname)"
+  echo "Uptime: $(uptime -p 2>/dev/null || uptime)"
+  echo "OS: $(uname -sr)"
+  echo
+  echo "CPU (top lines):"
+  lscpu 2>/dev/null | sed -n '1,6p' || cat /proc/cpuinfo | sed -n '1,6p'
+  echo
+  echo "Memory:"
+  free -h
+  echo
+  echo "Disk usage:"
+  df -h --total | sed -n '1,6p'
+  echo
+  progress 5
+  pause
+}
+
+# Option 2: File Organizer
+file_organizer() {
+  echo -e "${GREEN}---- FILE ORGANIZER ----${RESET}"
+  read -rp "Enter directory to organize (full path): " dir
+  if [ -z "$dir" ]; then
+    echo -e "${YELLOW}No directory provided. Aborting.${RESET}"
+    pause
+    return
+  fi
+  if [ ! -d "$dir" ]; then
+    echo -e "${RED}Directory not found: $dir${RESET}"
+    pause
+    return
+  fi
+  echo "Creating categories..."
+  mkdir -p "$dir"/{Images,Documents,Audio,Video,Archives,Others}
+  found=0
+  shopt -s nocaseglob
+  for file in "$dir"/*; do
+    [ -f "$file" ] || continue
+    found=1
+    case "$file" in
+      *.jpg|*.jpeg|*.png|*.gif|*.bmp) mv -n "$file" "$dir/Images/";;
+      *.pdf|*.doc|*.docx|*.txt|*.odt|*.ppt|*.pptx) mv -n "$file" "$dir/Documents/";;
+      *.mp3|*.wav|*.flac) mv -n "$file" "$dir/Audio/";;
+      *.mp4|*.mkv|*.avi|*.mov) mv -n "$file" "$dir/Video/";;
+      *.zip|*.tar|*.tar.gz|*.tgz|*.rar|*.7z) mv -n "$file" "$dir/Archives/";;
+      *) mv -n "$file" "$dir/Others/";;
+    esac
+  done
+  shopt -u nocaseglob
+  if [ "$found" -eq 0 ]; then
+    echo "No files to organize in $dir"
+  else
+    echo "Files organized in $dir"
+  fi
+  progress 4
+  pause
+}
+
+# Option 3: Backup & Restore
+backup_restore() {
+  echo -e "${GREEN}---- BACKUP & RESTORE ----${RESET}"
+  echo "1) Create backup (tar.gz)"
+  echo "2) Restore backup (tar.gz)"
+  read -rp "Choice: " br
+  if [ "$br" = "1" ]; then
+    read -rp "Folder to backup (full path): " folder
+    [ -d "$folder" ] || { echo "Folder doesn't exist"; pause; return; }
+    read -rp "Output backup name (default: backup-$(date +%F).tar.gz): " out
+    out=${out:-backup-$(date +%F).tar.gz}
+    tar -czvf "$out" -C "$(dirname "$folder")" "$(basename "$folder")"
+    echo "Backup saved as $out"
+  else
+    read -rp "Backup file to restore (path): " infile
+    [ -f "$infile" ] || { echo "File doesn't exist"; pause; return; }
+    read -rp "Restore into directory (default: ./restored): " rdir
+    rdir=${rdir:-./restored}
+    mkdir -p "$rdir"
+    tar -xzvf "$infile" -C "$rdir"
+    echo "Restored into $rdir"
+  fi
+  progress 4
+  pause
+}
+
+# Option 4: Log Analyzer
+log_analyzer() {
+  echo -e "${GREEN}---- LOG ANALYZER ----${RESET}"
+  if command -v journalctl >/dev/null 2>&1; then
+    echo "Showing last 30 journal entries:"
+    journalctl -n 30 --no-pager
+  else
+    echo "No journalctl available. Showing /var/log/syslog (if exists):"
+    tail -n 50 /var/log/syslog 2>/dev/null || tail -n 50 /var/log/messages 2>/dev/null || echo "No accessible logs found."
+  fi
+  progress 4
+  pause
+}
+
+# Option 5: Process Manager
+process_manager() {
+  echo -e "${GREEN}---- PROCESS MANAGER ----${RESET}"
+  ps aux --sort=-%mem | head -n 12
+  echo
+  read -rp "Enter PID to kill (or press Enter to skip): " pid
+  if [ -n "$pid" ]; then
+    if kill -0 "$pid" >/dev/null 2>&1; then
+      read -rp "Confirm kill PID $pid? (y/N): " confirm
+      if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        kill -9 "$pid" && echo "Killed $pid" || echo "Failed to kill $pid"
+      else
+        echo "Aborted."
+      fi
+    else
+      echo "PID not running."
+    fi
+  fi
+  progress 3
+  pause
+}
+
+# Option 6: Disk Cleanup
+disk_cleanup() {
+  echo -e "${GREEN}---- DISK CLEANUP ----${RESET}"
+  echo "This will run package cleanup commands and show large files."
+  read -rp "Proceed? (y/N): " ok
+  if [[ "$ok" =~ ^[Yy]$ ]]; then
+    if command -v apt >/dev/null 2>&1; then
+      sudo apt autoremove -y
+      sudo apt autoclean
+    fi
+    echo "Large files (top 10 in /):"
+    sudo find / -xdev -type f -printf '%s %p
+' 2>/dev/null | sort -n -r | head -n 10
+    progress 5
+  else
+    echo "Cancelled cleanup."
+  fi
+  pause
+}
+
+# Main loop
+while true; do
+  header
+  echo -e "${YELLOW}1) System Information${RESET}"
+  echo -e "${YELLOW}2) File Organizer${RESET}"
+  echo -e "${YELLOW}3) Backup & Restore${RESET}"
+  echo -e "${YELLOW}4) Log Analyzer${RESET}"
+  echo -e "${YELLOW}5) Process Manager${RESET}"
+  echo -e "${YELLOW}6) Disk Cleanup${RESET}"
+  echo -e "${YELLOW}7) Exit${RESET}"
+  echo
+  read -rp "Enter your choice [1-7]: " choice
+  case "$choice" in
+    1) sys_info ;;
+    2) file_organizer ;;
+    3) backup_restore ;;
+    4) log_analyzer ;;
+    5) process_manager ;;
+    6) disk_cleanup ;;
+    7) echo -e "${BLUE}Goodbye!${RESET}"; exit 0 ;;
+    *) echo -e "${RED}Invalid option${RESET}"; sleep 1 ;;
+  esac
+done
